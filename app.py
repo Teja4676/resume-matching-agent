@@ -57,7 +57,6 @@ def parse_resume_into_dynamic_blocks(raw_text: str, detected_companies: List[str
             
         found_marker = False
         for company in detected_companies:
-            # Check if the line references a detected company name safely
             if company.lower() in cleaned.lower() and any(char.isdigit() for char in cleaned):
                 if current_company:
                     company_blocks.append({"company": current_company, "content": "\n".join(current_lines)})
@@ -96,7 +95,6 @@ def run_universal_agent(job_description: str, raw_resume: str, api_key: str):
     st.write("⚙️ [Pass 1/2] Dynamically analyzing resume architecture and freezing original job titles...")
     meta_output = meta_chain.invoke({"jd": job_description, "resume": raw_resume})
     
-    # Map the dynamically discovered companies into a frozen runtime dictionary
     dynamic_title_map = {emp.company_name: emp.original_title for emp in meta_output.detected_employment_history}
     detected_company_names = list(dynamic_title_map.keys())
     
@@ -123,7 +121,6 @@ def run_universal_agent(job_description: str, raw_resume: str, api_key: str):
     
     st.write(f"⚙️ [Pass 2/2] Running individual optimization loops across {len(company_inputs)} dynamically parsed work blocks...")
     for block in company_inputs:
-        # Retrieve the dynamically parsed original title
         frozen_title = dynamic_title_map.get(block["company"], "Technical Specialist")
         
         cell_output = cell_chain.invoke({
@@ -140,7 +137,7 @@ def run_universal_agent(job_description: str, raw_resume: str, api_key: str):
     return meta_output, processed_history
 
 # =====================================================================
-# 5. STREAMLIT APPLICATION FRONTEND
+# 5. STREAMLIT APPLICATION FRONTEND (INDENTATION FIXED)
 # =====================================================================
 col1, col2 = st.columns([1, 1.2])
 
@@ -188,5 +185,5 @@ with col2:
                         
                 except Exception as e:
                     st.error(f"An engine runtime error occurred: {str(e)}")
-else:
-    st.info("Provide parameters and click execute to process any technical profile universally without layout or title bias.")
+    else:
+        st.info("Provide parameters and click execute to process any technical profile universally without layout or title bias.")
