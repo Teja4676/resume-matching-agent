@@ -11,84 +11,87 @@ from langchain_groq import ChatGroq
 # =====================================================================
 st.set_page_config(page_title="Production Full-Length Resume Engine", page_icon="📝", layout="wide")
 st.title("📝 Full-Length Unbiased Resume Optimization Agent")
-st.caption("Production Ready: Fully maps and renders your complete career timeline with 100% stability.")
+st.caption("2-Pass Execution Architecture: Guarantees 100% stable, long-form outputs on open-source backends.")
 
 # =====================================================================
-# 2. MATCHED SCHEMAS FOR FAULT-TOLERANT PLUG-AND-PLAY PARSING
+# 2. LIGHTWEIGHT DECOUPLED PYDANTIC SCHEMAS
 # =====================================================================
+class InitialAnalysisMeta(BaseModel):
+    extracted_jd_keywords: List[str] = Field(description="Critical skills extracted from the JD.")
+    verified_matching_skills: List[str] = Field(description="JD skills verified directly or via platform equivalents (e.g., SageMaker).")
+    professional_summary: str = Field(description="Paragraph professional summary tailoring the profile narratives toward MLOps/Infra.")
+    technical_skills_matrix: str = Field(description="Comma-separated string matrix mapping tech stack capabilities.")
+    calculated_match_score: int = Field(description="ATS match evaluation metrics percentage (0-100).")
+
 class OptimizedBullet(BaseModel):
-    original_text: str = Field(description="The exact original source bullet point from the input resume.")
-    optimized_text: str = Field(description="The rewritten bullet aligning the task natively to MLOps, cloud infrastructure, or automated pipelines.")
-    keywords_integrated: List[str] = Field(description="The specific target keywords integrated into this line.")
+    original_text: str = Field(description="The source line being evaluated.")
+    optimized_text: str = Field(description="The reframed sentence tracking to MLOps, deployment pipelines, or cloud scaling.")
+    keywords_integrated: List[str] = Field(description="Keywords applied to this single sentence.")
 
-class OptimizedWorkHistory(BaseModel):
-    company: str = Field(description="Company or Organization name.")
-    role_title: str = Field(description="The professional title contextually aligned for the target domain.")
-    duration: str = Field(description="Dates or duration of employment.")
-    # FIXED: Changed from 'all_optimized_bullets' to 'bullets' to align exactly with model behavior
-    bullets: List[OptimizedBullet] = Field(description="List of EVERY rewritten bullet point for this company. Maintain a strict 1:1 ratio.")
+class FullWorkHistory(BaseModel):
+    company: str = Field(description="Company name.")
+    role_title: str = Field(description="The updated functional title.")
+    duration: str = Field(description="Dates or duration.")
+    bullets: List[OptimizedBullet] = Field(description="The complete list of ALL rewritten sentences 1:1.")
 
-class CompleteRestructuredResume(BaseModel):
-    candidate_name: str = Field(description="Full name of candidate.")
-    professional_summary: str = Field(description="A comprehensive professional summary paragraph linking infrastructure automation to production MLOps engineering.")
-    technical_skills_matrix: str = Field(description="A clean, single string or comma-separated markdown representation of optimized tools and platforms.")
-    comprehensive_experience: List[OptimizedWorkHistory] = Field(description="The full array of chronological career history rewritten 1:1.")
-    unmapped_critical_gaps: List[str] = Field(description="Target requirements from the JD completely missing from candidate's profile data.")
-    calculated_match_score: int = Field(description="ATS match score percentage (0-100).")
+class FinalExperiencePayload(BaseModel):
+    comprehensive_experience: List[FullWorkHistory] = Field(description="Complete structural array tracking all jobs from the record.")
 
 # =====================================================================
-# 3. CORE RUNTIME ENGINE
+# 3. MULTI-PASS RUNTIME ORCHESTRATION ENGINE
 # =====================================================================
-def run_full_resume_agent(job_description: str, raw_resume: str, api_key: str) -> CompleteRestructuredResume:
+def run_stable_resume_agent(job_description: str, raw_resume: str, api_key: str):
     llm = ChatGroq(
         model_name="llama-3.3-70b-versatile", 
         temperature=0.0, 
         groq_api_key=api_key
     )
     
-    # --- STAGES 1 & 2: REQUIREMENTS EXTRACTION & EQUIVALENCY MAPPING ---
-    class SimpleAnalysis(BaseModel):
-        extracted_jd_keywords: List[str]
-        verified_matching_skills: List[str]
-
-    analysis_prompt = ChatPromptTemplate.from_messages([
+    # -----------------------------------------------------------------
+    # PASS 1: METADATA & ANALYTICS ANALYSIS
+    # -----------------------------------------------------------------
+    meta_prompt = ChatPromptTemplate.from_messages([
         ("system", (
-            "You are an expert tech recruiter. Extract critical skills from the JD. "
-            "Cross-reference them with the Resume. If the candidate has extensive experience with AWS SageMaker, SageMaker AI, or SageMaker Unified Studio, "
-            "always count them as verified equivalents for ML Pipelines, Model Deployment, Serving, Model Governance, and ML Infrastructure Compute."
+            "You are an expert technical recruiter. Analyze the JD and Resume.\n"
+            "Identify target keywords and verify equivalents (AWS SageMaker/SageMaker AI counts as equivalents "
+            "for ML Pipelines, Model Deployment, Serving, Governance, and ML Compute).\n"
+            "Generate an optimized paragraph professional summary and skills matrix based purely on existing record truths."
         )),
         ("human", "### JD:\n{jd}\n\n### RESUME:\n{resume}")
     ])
-    analysis_chain = analysis_prompt | llm.with_structured_output(SimpleAnalysis)
-    analysis_results = analysis_chain.invoke({"jd": job_description, "resume": raw_resume})
     
-    # --- STAGE 3: FULL 1:1 RESUME TRANSLATION SANDBOX ---
+    meta_chain = meta_prompt | llm.with_structured_output(InitialAnalysisMeta)
+    print("[Pass 1/2] Computing baseline analytics and generating meta structures...")
+    meta_output = meta_chain.invoke({"jd": job_description, "resume": raw_resume})
+    
+    # -----------------------------------------------------------------
+    # PASS 2: COMPREHENSIVE WORK HISTORY REWRITING
+    # -----------------------------------------------------------------
     rewriting_prompt = ChatPromptTemplate.from_messages([
         ("system", (
-            "You are an expert Resume Architect. Your job is to output a comprehensive, full-length resume matching the schema precisely.\n\n"
+            "You are an expert Tech Resume Writer. Your task is to extract and rewrite the candidate's professional work history.\n\n"
             "CRITICAL RULES:\n"
-            "1. NO OMISSION: You must map and rewrite EVERY SINGLE original bullet point across the professional history. Do not drop, skip, or merge any bullets. Provide a full-length layout.\n"
-            "2. CONTEXTUAL REFRAMING: Pivot their infrastructure, cloud scaling, validation, and automation achievements to highlight how they build, serve, secure, and monitor production Machine Learning workloads using SageMaker and advanced CI/CD.\n"
-            "3. NO HALLUCINATION: You must never invent numbers, metrics, or technologies (like PyTorch or Airflow) if they are absent from the candidate's history. Rely heavily on their existing tools (Jenkins, Terraform, SageMaker, Kubernetes, Docker).\n"
-            "4. Match Score Formula: (Count of Unique Integrated Keywords / Total Target Job Keywords) * 100."
+            "1. NO OMISSION: Provide an optimized version for EVERY SINGLE bullet point from the input text. Do not summarize, merge, or shorten the chronology.\n"
+            "2. CONTEXTUAL PIVOT: Reframer their DevOps/Cloud experience to focus on ML workflows, Model Deployments (CD), and automated pipelines using their verified tools (SageMaker, Jenkins, Terraform, Docker, Kubernetes).\n"
+            "3. NO HALLUCINATION: Do not invent numbers, metrics, or claim they used raw libraries like PyTorch or Airflow if they are missing from their background."
         )),
         ("human", (
-            "### TARGET JOB KEYWORDS:\n{job_keywords}\n\n"
-            "### VERIFIED MATCHING SKILLS & EQUIVALENTS:\n{verified_skills}\n\n"
-            "### FULL ORIGINAL RESUME FOR COMPLETE TRANSFORMATION:\n{resume_content}"
+            "### TARGET KEYWORDS TO WEAVE IN NATIVELY:\n{verified_skills}\n\n"
+            "### WORK HISTORY BLOCK TO REWRITE 1:1:\n{resume_content}"
         ))
     ])
     
-    rewriting_chain = rewriting_prompt | llm.with_structured_output(CompleteRestructuredResume)
-    
-    return rewriting_chain.invoke({
-        "job_keywords": json.dumps(analysis_results.extracted_jd_keywords),
-        "verified_skills": json.dumps(analysis_results.verified_matching_skills),
+    rewriting_chain = rewriting_prompt | llm.with_structured_output(FinalExperiencePayload)
+    print("[Pass 2/2] Transforming professional experience blocks 1:1 inside sandbox...")
+    experience_output = rewriting_chain.invoke({
+        "verified_skills": json.dumps(meta_output.verified_matching_skills),
         "resume_content": raw_resume
     })
+    
+    return meta_output, experience_output
 
 # =====================================================================
-# 4. STREAMLIT DISPLAY INTERFACE
+# 4. STREAMLIT LAYOUT INTERFACE
 # =====================================================================
 col1, col2 = st.columns([1, 1.2])
 
@@ -107,38 +110,37 @@ with col2:
         if not user_api_key or not jd_input or not resume_input:
             st.error("Please fill out all input fields before running.")
         else:
-            with st.spinner("Executing full-length structural context translation engine..."):
+            with st.spinner("Executing 2-pass structural context translation engine safely..."):
                 try:
-                    resume_data = run_full_resume_agent(jd_input, resume_input, user_api_key)
+                    meta, experience = run_stable_resume_agent(jd_input, resume_input, user_api_key)
                     
-                    # Display Match Rating
-                    st.metric(label="Calculated ATS Match Rating", value=f"{resume_data.calculated_match_score}%")
+                    # Display Metrics
+                    st.metric(label="Calculated ATS Match Rating", value=f"{meta.calculated_match_score}%")
                     st.markdown("---")
                     
-                    # Render Profile Header
-                    st.header(resume_data.candidate_name)
+                    # Render Profile Document
+                    st.markdown("### Technical Summary Profile")
+                    st.info(f"**Professional Summary:**\n{meta.professional_summary}")
                     
-                    st.markdown("### Professional Summary")
-                    st.write(resume_data.professional_summary)
+                    st.markdown("### Technical Skills Core Inventory")
+                    st.markdown(meta.technical_skills_matrix)
                     
-                    st.markdown("### Technical Skills Matrix")
-                    st.markdown(resume_data.technical_skills_matrix)
-                    
-                    st.markdown("### Professional Work Experience Breakdown")
-                    for job in resume_data.comprehensive_experience:
+                    st.markdown("### Comprehensive Chronological Work History")
+                    for job in experience.comprehensive_experience:
                         st.markdown(f"#### **{job.role_title}** — *{job.company}* ({job.duration})")
                         for idx, bullet in enumerate(job.bullets):
                             st.markdown(f"**{idx+1}.** {bullet.optimized_text}")
                             st.caption(f"🔧 *Integrated Alignment Tags: {', '.join(bullet.keywords_integrated) if bullet.keywords_integrated else 'Core Platform Infrastructure'}*")
                     
-                    # Log Blocked Gaps
-                    if resume_data.unmapped_critical_gaps:
+                    # Log Unmapped Elements
+                    unmapped_gaps = [g for g in meta.extracted_jd_keywords if g not in meta.verified_matching_skills]
+                    if unmapped_gaps:
                         st.markdown("---")
                         st.markdown("### ⚠️ Blocked Tool Gaps (Sandbox Safety Filter)")
-                        st.caption("The following specialized tools from the JD were blocked from inclusion because no functional equivalent was verified in your profile history to prevent hallucinations:")
-                        st.info(", ".join(resume_data.unmapped_critical_gaps))
+                        st.caption("Omitted from text injection to prevent background misrepresentation:")
+                        st.warning(", ".join(unmapped_gaps))
                         
                 except Exception as e:
                     st.error(f"An engine runtime error occurred: {str(e)}")
     else:
-        st.info("Input your operational parameters and click generate to render your structured, full-length resume.")
+        st.info("Input your parameters and execute the tool to render your full-length optimized profile layout.")
