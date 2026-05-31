@@ -4,39 +4,19 @@ import json
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+# --- CHANGE THIS IMPORT ---
+from langchain_groq import ChatGroq 
 
-# 1. SETUP WEB PAGE CONFIG
-st.set_page_config(page_title="Unbiased Resume Matcher AI", page_icon="📝", layout="wide")
-st.title("📝 Unbiased Resume Matching & Optimization Agent")
-st.caption("Achieve 80-100% ATS optimization safely within a zero-hallucination sandbox.")
+# (Keep your Pydantic schemas exactly the same as they were before)
 
-# 2. DEFINING PYDANTIC SCHEMAS FOR LANGCHAIN
-class AnalysisReport(BaseModel):
-    extracted_jd_keywords: List[str] = Field(description="Critical skills extracted from the JD.")
-    verified_matching_skills: List[str] = Field(description="Sub-list of JD keywords that the candidate explicitly possesses.")
-
-class OptimizedBulletPoint(BaseModel):
-    original_text: str = Field(description="The source bullet point text before optimization.")
-    optimized_text: str = Field(description="The rewritten bullet following X-Y-Z formula.")
-    keywords_integrated: List[str] = Field(description="Keywords from the verified matching list integrated here.")
-
-class OptimizedWorkExperience(BaseModel):
-    company: str = Field(description="Company name.")
-    role_title: str = Field(description="The professional title.")
-    duration: Optional[str] = Field(None, description="Employment timeline.")
-    bullets: List[OptimizedBulletPoint] = Field(description="Optimized achievement bullets.")
-
-class FullOptimizedResume(BaseModel):
-    candidate_name: str = Field(description="The professional name of the candidate.")
-    professional_summary: str = Field(description="Optimized narrative summary.")
-    work_experience: List[OptimizedWorkExperience] = Field(description="The tailored work history block.")
-    unmapped_critical_gaps: List[str] = Field(description="JD keywords omitted due to total lack of evidence.")
-    calculated_match_score: int = Field(description="Match score out of 100.")
-
-# 3. CORE AGENT PIPELINE ENGINE
+# --- CHANGER YOUR CORE AGENT ENGINE TO USE GROQ ---
 def run_agent(job_description: str, raw_resume: str, api_key: str) -> FullOptimizedResume:
-    llm = ChatOpenAI(model="gpt-4o", temperature=0.0, openai_api_key=api_key)
+    # Swapping OpenAI for Groq's high-speed free model
+    llm = ChatGroq(
+        model_name="llama-3.3-70b-versatile", 
+        temperature=0.0, 
+        groq_api_key=api_key
+    )
     
     # Stage 1 & 2
     analysis_prompt = ChatPromptTemplate.from_messages([
@@ -59,52 +39,8 @@ def run_agent(job_description: str, raw_resume: str, api_key: str) -> FullOptimi
         "resume_content": raw_resume
     })
 
-# 4. BUILDING THE INTERACTIVE UI
-col1, col2 = st.columns(2)
-
+# --- UPDATE THE TEXT BOX LABEL ---
 with col1:
     st.subheader("1. Input Configuration")
-    user_api_key = st.text_input("Enter your OpenAI API Key", type="password", help="Your key is processed securely in-memory and never saved stored.")
-    jd_input = st.text_area("Paste target Job Description (JD) here", height=200)
-    resume_input = st.text_area("Paste your original Resume here", height=300)
-    
-    submit_btn = st.button("Run Sandbox Optimization Engine", type="primary", use_container_width=True)
-
-with col2:
-    st.subheader("2. Optimization Output & Analytics")
-    
-    if submit_btn:
-        if not user_api_key or not jd_input or not resume_input:
-            st.error("Please fill out your API Key, Job Description, and Resume before running!")
-        else:
-            with st.spinner("Processing 3-Stage Pipeline (Analyzing, Cross-referencing, Rewriting safely)..."):
-                try:
-                    result = run_agent(jd_input, resume_input, user_api_key)
-                    
-                    # Score Callout
-                    st.metric(label="Calculated ATS Match Score", value=f"{result.calculated_match_score}%")
-                    
-                    # Professional Summary Block
-                    st.markdown(f"### Profile: **{result.candidate_name}**")
-                    st.info(f"**Professional Summary:**\n{result.professional_summary}")
-                    
-                    # Work Experience Output
-                    st.markdown("### Tailored Chronological Experience")
-                    for job in result.work_experience:
-                        st.markdown(f"#### **{job.role_title}** at *{job.company}* ({job.duration or ''})")
-                        for bullet in job.bullets:
-                            st.write(f"👉 **Optimized:** {bullet.optimized_text}")
-                            st.caption(f"🔧 *Integrated Keywords: {', '.join(bullet.keywords_integrated) if bullet.keywords_integrated else 'None'}*")
-                    
-                    # Unmapped Safety Gaps Callout
-                    if result.unmapped_critical_gaps:
-                        st.markdown("---")
-                        st.markdown("### ⚠️ Blocked Gaps (Sandbox Safety Filter)")
-                        st.warning("The following core requirements from the Job Description were intentionally excluded to prevent resume exaggeration/hallucinations:")
-                        for gap in result.unmapped_critical_gaps:
-                            st.markdown(f"- `{gap}`")
-                            
-                except Exception as e:
-                    st.error(f"An engine runtime error occurred: {str(e)}")
-    else:
-        st.write("Provide inputs on the left pane and execute the engine to populate analysis.")
+    user_api_key = st.text_input("Enter your Free Groq API Key", type="password")
+    # (Keep the rest of your Streamlit UI components exactly as they were...)
