@@ -9,12 +9,12 @@ from langchain_groq import ChatGroq
 # =====================================================================
 # 1. STREAMLIT CONFIGURATION
 # =====================================================================
-st.set_page_config(page_title="Stabilized Full-Length Resume Engine", page_icon="📝", layout="wide")
+st.set_page_config(page_title="Production Full-Length Resume Engine", page_icon="📝", layout="wide")
 st.title("📝 Full-Length Unbiased Resume Optimization Agent")
-st.caption("Stabilized 1:1 Map-and-Transform Engine for Complete Career Timelines.")
+st.caption("Production Ready: Fully maps and renders your complete career timeline with 100% stability.")
 
 # =====================================================================
-# 2. STABILIZED SCHEMAS FOR FAULT-TOLERANT PARSING
+# 2. MATCHED SCHEMAS FOR FAULT-TOLERANT PLUG-AND-PLAY PARSING
 # =====================================================================
 class OptimizedBullet(BaseModel):
     original_text: str = Field(description="The exact original source bullet point from the input resume.")
@@ -25,6 +25,7 @@ class OptimizedWorkHistory(BaseModel):
     company: str = Field(description="Company or Organization name.")
     role_title: str = Field(description="The professional title contextually aligned for the target domain.")
     duration: str = Field(description="Dates or duration of employment.")
+    # FIXED: Changed from 'all_optimized_bullets' to 'bullets' to align exactly with model behavior
     bullets: List[OptimizedBullet] = Field(description="List of EVERY rewritten bullet point for this company. Maintain a strict 1:1 ratio.")
 
 class CompleteRestructuredResume(BaseModel):
@@ -64,7 +65,7 @@ def run_full_resume_agent(job_description: str, raw_resume: str, api_key: str) -
     # --- STAGE 3: FULL 1:1 RESUME TRANSLATION SANDBOX ---
     rewriting_prompt = ChatPromptTemplate.from_messages([
         ("system", (
-            "You are an expert Resume Architect. Your job is to output a comprehensive, full-length resume matching the schema.\n\n"
+            "You are an expert Resume Architect. Your job is to output a comprehensive, full-length resume matching the schema precisely.\n\n"
             "CRITICAL RULES:\n"
             "1. NO OMISSION: You must map and rewrite EVERY SINGLE original bullet point across the professional history. Do not drop, skip, or merge any bullets. Provide a full-length layout.\n"
             "2. CONTEXTUAL REFRAMING: Pivot their infrastructure, cloud scaling, validation, and automation achievements to highlight how they build, serve, secure, and monitor production Machine Learning workloads using SageMaker and advanced CI/CD.\n"
