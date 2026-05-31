@@ -10,30 +10,30 @@ from langchain_groq import ChatGroq
 # 1. WEB PAGE LAYOUT INITIALIZATION
 # =====================================================================
 st.set_page_config(page_title="Unbiased Resume Matcher AI", page_icon="📝", layout="wide")
-st.title("📝 Unbiased Resume Matching & Optimization Agent")
-st.caption("Achieve 80-100% ATS optimization safely within a zero-hallucination sandbox powered by Groq.")
+st.title("📝 Advanced MLOps/DevSecOps Resume Matching Agent")
+st.caption("Enhanced Semantic Matching Engine - Bridges the gap between cloud ML platforms and MLOps tools.")
 
 # =====================================================================
 # 2. PYDANTIC SCHEMAS FOR STRUCTURED DATA VALIDATION
 # =====================================================================
 class AnalysisReport(BaseModel):
-    extracted_jd_keywords: List[str] = Field(description="Critical skills extracted from the JD.")
-    verified_matching_skills: List[str] = Field(description="Sub-list of JD keywords that the candidate explicitly possesses based on the resume.")
+    extracted_jd_keywords: List[str] = Field(description="Critical skills and concepts extracted from the JD.")
+    verified_matching_skills: List[str] = Field(description="Sub-list of JD keywords that the candidate explicitly possesses OR has direct cloud platform equivalents for (e.g., SageMaker for MLOps).")
 
 class OptimizedBulletPoint(BaseModel):
     original_text: str = Field(description="The source bullet point text before optimization.")
-    optimized_text: str = Field(description="The rewritten bullet following X-Y-Z formula.")
+    optimized_text: str = Field(description="The rewritten bullet following X-Y-Z formula, emphasizing the target role context.")
     keywords_integrated: List[str] = Field(description="Keywords from the verified matching list integrated here.")
 
 class OptimizedWorkExperience(BaseModel):
     company: str = Field(description="Company name.")
-    role_title: str = Field(description="The professional title.")
+    role_title: str = Field(description="The professional title optimized for the target domain context.")
     duration: Optional[str] = Field(None, description="Employment timeline.")
     bullets: List[OptimizedBulletPoint] = Field(description="Optimized achievement bullets.")
 
 class FullOptimizedResume(BaseModel):
     candidate_name: str = Field(description="The professional name of the candidate.")
-    professional_summary: str = Field(description="Optimized narrative summary.")
+    professional_summary: str = Field(description="Optimized narrative summary bridging existing skills to target requirements.")
     work_experience: List[OptimizedWorkExperience] = Field(description="The tailored work history block.")
     unmapped_critical_gaps: List[str] = Field(description="JD keywords omitted due to total lack of evidence.")
     calculated_match_score: int = Field(description="Match score out of 100.")
@@ -42,16 +42,24 @@ class FullOptimizedResume(BaseModel):
 # 3. CORE 3-STAGE AGENT RUNTIME PIPELINE
 # =====================================================================
 def run_agent(job_description: str, raw_resume: str, api_key: str) -> FullOptimizedResume:
-    # Initialize the Groq model with temperature 0.0 for deterministic parsing
     llm = ChatGroq(
         model_name="llama-3.3-70b-versatile", 
         temperature=0.0, 
         groq_api_key=api_key
     )
     
-    # --- STAGES 1 & 2: REQ EXTRACTION & TRUTH MAPPING ---
+    # --- STAGES 1 & 2: CONCEPTUAL REQ EXTRACTION & TRUTH MAPPING ---
     analysis_prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are an objective AI Recruiter. Parse the JD for keywords, cross-reference with the Resume. Do not extrapolate or assume skills."),
+        ("system", (
+            "You are an expert AI Recruiter specializing in MLOps, DevOps, and Data Science infrastructure.\n"
+            "Your job is to identify core keywords in the JD and evaluate if the candidate has them OR their direct engineering equivalents.\n\n"
+            "CRITICAL EQUIVALENCY RULES:\n"
+            "If the candidate has extensive experience with AWS SageMaker, SageMaker AI, and SageMaker Unified Studio, they possess valid platform equivalents for:\n"
+            "- ML Pipelines / Orchestration (equivalent to Kubeflow / Airflow workflows)\n"
+            "- Model Deployment & Serving / Model Registry (equivalent to MLflow / Weights & Biases tracking)\n"
+            "- Machine Learning Infrastructure / Compute\n\n"
+            "If an equivalent exists, include the JD keyword in the 'verified_matching_skills' array so the rewriter can optimize the phrasing contextually."
+        )),
         ("human", "### JOB DESCRIPTION:\n{jd}\n\n### CANDIDATE RESUME:\n{resume}")
     ])
     analysis_chain = analysis_prompt | llm.with_structured_output(AnalysisReport)
@@ -60,11 +68,13 @@ def run_agent(job_description: str, raw_resume: str, api_key: str) -> FullOptimi
     # --- STAGE 3: CONTEXTUAL REWRITING SANDBOX ---
     rewriting_prompt = ChatPromptTemplate.from_messages([
         ("system", (
-            "You are an expert Resume Engine. Optimize resume vocabulary using verified matching skills.\n"
+            "You are an expert Resume Engine. Your goal is to pivot a candidate's DevOps/DevSecOps experience into the MLOps context "
+            "using their verified AWS SageMaker and automation background.\n\n"
             "CRITICAL SANDBOX RULES:\n"
-            "1. NO HALLUCINATION. Do not invent metrics or tools that aren't in the input dataset.\n"
-            "2. Only use keywords that are present in the 'Verified Matching Skills' list.\n"
-            "3. If a keyword is missing from the verified list, ignore it in the text rewrite and log it exclusively under gaps."
+            "1. NO HALLUCINATION. Do not invent metrics, projects, or say they wrote raw PyTorch models if they didn't. \n"
+            "2. CONTEXTUAL TRANSLATION: Reframe their deployment, automation, and infrastructure engineering achievements to highlight how they support ML Pipelines, Model Deployment (CD), and ML Infrastructure using SageMaker and CI/CD.\n"
+            "3. Only use keywords that are present in the 'Verified Matching Skills' list.\n"
+            "4. If a keyword is completely unmapped and lacks any equivalent, log it under gaps."
         )),
         ("human", (
             "### TARGET JOB KEYWORDS:\n{job_keywords}\n\n"
@@ -87,7 +97,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("1. Input Configuration")
-    user_api_key = st.text_input("Enter your Free Groq API Key", type="password", help="Get a free key from console.groq.com")
+    user_api_key = st.text_input("Enter your Free Groq API Key", type="password")
     jd_input = st.text_area("Paste target Job Description (JD) here", height=200)
     resume_input = st.text_area("Paste your original Resume here", height=300)
     
@@ -104,14 +114,10 @@ with col2:
                 try:
                     result = run_agent(jd_input, resume_input, user_api_key)
                     
-                    # Score Callout
                     st.metric(label="Calculated ATS Match Score", value=f"{result.calculated_match_score}%")
-                    
-                    # Professional Summary Block
                     st.markdown(f"### Profile: **{result.candidate_name}**")
                     st.info(f"**Professional Summary:**\n{result.professional_summary}")
                     
-                    # Work Experience Output
                     st.markdown("### Tailored Chronological Experience")
                     for job in result.work_experience:
                         st.markdown(f"#### **{job.role_title}** at *{job.company}* ({job.duration or ''})")
@@ -119,7 +125,6 @@ with col2:
                             st.write(f"👉 **Optimized:** {bullet.optimized_text}")
                             st.caption(f"🔧 *Integrated Keywords: {', '.join(bullet.keywords_integrated) if bullet.keywords_integrated else 'None'}*")
                     
-                    # Unmapped Safety Gaps Callout
                     if result.unmapped_critical_gaps:
                         st.markdown("---")
                         st.markdown("### ⚠️ Blocked Gaps (Sandbox Safety Filter)")
